@@ -1,4 +1,4 @@
-# Aegis Progress — 17 Crates, 141 Tests, 0 Warnings
+# Aegis Progress — 20 Crates, 126 Tests
 
 ## Phase 1 — Foundation
 Recon, exploit DB, SQLite, scheduler, reports
@@ -9,38 +9,35 @@ JS engine, verify modules, hunter intelligence, monitoring
 ## Phase 3 — Intelligence
 Attack graph, REST API, campaigns, bounty reports, OSINT
 
-## Phase 4 — Autonomous Exploitation Platform
+## Phase 4 — Autonomous Exploitation
+Auto-exploit engine, session mgmt, smart proxy, browser intel, campaigns, scope mgmt
 
-### Auto-Exploitation Engine
-- SQLi: boolean detection, DB fingerprinting (6 types), version extraction
-- SSRF: cloud metadata probing (AWS/GCP/Azure), internal service discovery
-- XSS: unique-payload reflection testing with context classification
-- LFI: sensitive file reading (passwd, environ, PHP wrappers, logs)
-- Orchestrator: coordinated multi-module exploitation
+## Phase 5 — Dashboard, Plugins & AI
 
-### Session & Evasion
-- Form login with CSRF extraction (6 regex patterns)
-- Bearer/JWT authentication, cookie persistence
-- Smart proxy rotation, 6 User-Agents, jitter delays, randomized headers
-- WAF status-code triggers (429/403/401/503)
+### Web Dashboard
+- [x] Vue.js 3 SPA with 6 views: Dashboard, Scope, Scans, Findings, Attack Graph, Settings
+- [x] IN SCOPE / OUT OF SCOPE visual management with add/remove/save
+- [x] Scan launch form + history table with status/finding/duration badges
+- [x] Findings viewer with severity badges, search, and severity filter
+- [x] Attack graph visualization (nodes, edges, vulnerability chains)
+- [x] LLM config (endpoint, key, model, temperature) and notification webhooks
+- [x] 8 dashboard API endpoints integrated into axum router
 
-### Browser Intelligence
-- Playwright script generation for DOM analysis, auth crawling, PoC verification
-- Browser profile selection (chrome/firefox/safari, mobile/desktop)
+### Plugin Framework
+- [x] `AegisPlugin` trait with `execute()`, `hooks()`, `on_hook()`, `priority()`
+- [x] 7 hook points: BeforeRecon, AfterRecon, BeforeVerify, AfterVerify, OnFinding, BeforeReport, AfterReport
+- [x] PluginRegistry with register, run_all, fire_hook, get, list
+- [x] PluginManager with auto-registration lifecycle
+- [x] Built-in plugins: sqli-scanner, js-secret-scanner
+- [x] 3 unit tests
 
-### Autonomous Campaigns
-- Self-driving kill chain: recon → verify → hunter → exploit → report
-- Scheduled recurring scans with configurable intervals
-- Slack/Discord/Telegram webhook notifications
-
-### Scope Management
-- IN SCOPE / OUT OF SCOPE pattern-based filtering
-- Wildcard (*.domain.com) support
-- OOS exclusion during scanning (e.g. pay.domain.com excluded from *.domain.com)
-- `--scope scope.json` flag on scan command
-- JSON config file format
+### LLM Integration
+- [x] OpenAI-compatible client (configurable endpoint, key, model, temperature, max_tokens)
+- [x] Async `chat()` method with error handling
+- [x] 4 analysis functions: analyze_findings, generate_executive_summary, suggest_exploit, enhance_report
+- [x] Works with any OpenAI-compatible API (OpenAI, local vLLM, Ollama, etc.)
+- [x] 2 unit tests
 
 ### Repository
-- GitHub: `github.com/ryasrk/aegis-hunt`
-- 5 clean commits, zero clippy warnings
-- 141 tests, 7,400+ lines of Rust
+- [x] GitHub: `github.com/ryasrk/aegis-hunt`
+- [x] 6 clean commits, 20 crates, 126 tests
