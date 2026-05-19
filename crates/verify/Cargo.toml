@@ -1,17 +1,15 @@
 [package]
-name = "aegis-scheduler"
+name = "aegis-verify"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 aegis-core = { path = "../core" }
 aegis-events = { path = "../events" }
-aegis-jsengine = { path = "../jsengine" }
-aegis-recon = { path = "../recon" }
-aegis-storage = { path = "../storage" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+regex = "1"
 tracing = "0.1"
-chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1", features = ["v4"] }
+url = "2"

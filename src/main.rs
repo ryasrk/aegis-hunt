@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 use anyhow::Result;
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 
 use aegis_core::config::AppConfig;
@@ -45,6 +47,19 @@ enum Commands {
     },
     /// List previous scans from the database
     List,
+    /// Continuously monitor a target for changes
+    Monitor {
+        /// Target domain or file containing targets
+        target: String,
+        /// Interval between scans in minutes
+        #[arg(short, long, default_value = "60")]
+        interval: u64,
+        /// Output directory for historical data
+        #[arg(short, long, default_value = "recon/history")]
+        history_dir: String,
+        #[arg(short, long, default_value = "configs/default.toml")]
+        config: String,
+    },
 }
 
 #[tokio::main]
@@ -141,6 +156,67 @@ async fn main() -> Result<()> {
         }
         Commands::List => {
             println!("List: not yet implemented. Use SQLite directly on data/aegis.db");
+        }
+        Commands::Monitor { target, interval, history_dir, config } => {
+            let config: AppConfig = load_config(&config)?;
+            let parsed = TargetValidator::parse(&target)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            let interval_dur = std::time::Duration::from_secs(interval * 60);
+            let history = if history_dir.ends_with('/') { history_dir.clone() } else { format!("{}/", history_dir) };
+            fs::create_dir_all(&history)?;
+
+            println!("[Aegis] Monitoring {} every {} minutes", parsed.normalized, interval);
+            println!("[Aegis] History: {}", history);
+            println!("[Aegis] Press Ctrl+C to stop\n");
+
+            let mut iteration = 0u64;
+
+            loop {
+                iteration += 1;
+                let db_path = db_path_from_config(&config);
+                let db = Arc::new(Database::open(&db_path)?);
+                let event_bus = EventBus::new(1024);
+                let registry = PluginRegistry::new();
+                let engine = SchedulerEngine::new(config.clone(), event_bus, db.clone(), registry);
+                let scan_id = engine.run_scan(&parsed.normalized).await?;
+
+                // Save current state to history dir
+                let curr_file = format!("{}{}/subdomains-iter{}.txt", history, parsed.normalized, iteration);
+                if let Ok(services) = db.get_services_by_scan(&scan_id) {
+                    let content: String = services.iter().map(|s| format!("{}\n", s.url)).collect();
+                    let dir = Path::new(&curr_file).parent().unwrap();
+                    fs::create_dir_all(dir)?;
+                    fs::write(&curr_file, &content)?;
+                }
+
+                // Save latest as current state
+                let latest_file = format!("{}{}/subdomains.txt", history, parsed.normalized);
+                if Path::new(&latest_file).exists() {
+                    fs::copy(&latest_file, format!("{}{}/subdomains-prev.txt", history, parsed.normalized))?;
+                }
+                if Path::new(&curr_file).exists() {
+                    fs::copy(&curr_file, &latest_file)?;
+                }
+
+                // Diff if we have previous state
+                let prev_state = format!("{}{}/subdomains-prev.txt", history, parsed.normalized);
+                if Path::new(&prev_state).exists() && Path::new(&latest_file).exists() {
+                    let diff = aegis_scheduler::monitor::MonitorEngine::diff_scans(
+                        &parsed.normalized, &prev_state, &latest_file,
+                    )?;
+                    let summary = aegis_scheduler::monitor::MonitorEngine::diff_summary(&diff);
+                    if !summary.contains("No changes") {
+                        println!("\n[{}] Changes detected!\n{}",
+                            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"), summary);
+                    } else {
+                        print!(".");
+                        use std::io::Write;
+                        std::io::stdout().flush()?;
+                    }
+                }
+
+                tokio::time::sleep(interval_dur).await;
+            }
         }
     }
 

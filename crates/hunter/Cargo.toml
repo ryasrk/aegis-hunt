@@ -1,13 +1,13 @@
 [package]
-name = "aegis-intel"
+name = "aegis-hunter"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 aegis-core = { path = "../core" }
-aegis-events = { path = "../events" }
+aegis-verify = { path = "../verify" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-csv = "1.3"
+regex = "1"
 tracing = "0.1"
-semver = "1"
+base64 = "0.22"

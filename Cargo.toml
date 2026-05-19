@@ -2,11 +2,14 @@
 members = [
     "crates/core",
     "crates/events",
+    "crates/jsengine",
     "crates/storage",
     "crates/scheduler",
     "crates/recon",
     "crates/intel",
     "crates/reporting",
+    "crates/verify",
+    "crates/hunter",
 ]
 resolver = "2"
 

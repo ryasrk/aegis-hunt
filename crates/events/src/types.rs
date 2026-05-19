@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 pub enum Event {
     // Lifecycle
     ScanStarted { scan_id: String, target: String, timestamp: DateTime<Utc> },
-    ScanCompleted { scan_id: String, timestamp: DateTime<Utc> },
+    ScanCompleted { scan_id: String, timestamp: DateTime<Utc>, duration_secs: u64 },
     PhaseStarted { scan_id: String, phase: String, timestamp: DateTime<Utc> },
     PhaseCompleted { scan_id: String, phase: String, timestamp: DateTime<Utc> },
 

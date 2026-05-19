@@ -10,6 +10,17 @@ pub enum QueuePriority {
     Human,     // Manual validation, exploit review, bounty submission
 }
 
+impl QueuePriority {
+    pub fn from_risk_score(score: u32) -> Self {
+        match score {
+            0..=30 => QueuePriority::Fast,
+            31..=60 => QueuePriority::Medium,
+            61..=100 => QueuePriority::Expensive,
+            _ => QueuePriority::Human,
+        }
+    }
+}
+
 /// An item enqueued for processing.
 #[derive(Debug, Clone)]
 pub struct QueueItem {
@@ -18,6 +29,23 @@ pub struct QueueItem {
     pub target: String,
     pub payload: String,
     pub priority: QueuePriority,
+}
+
+impl QueueItem {
+    pub fn new(task_type: impl Into<String>, target: impl Into<String>, priority: QueuePriority) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            task_type: task_type.into(),
+            target: target.into(),
+            payload: String::new(),
+            priority,
+        }
+    }
+
+    pub fn with_payload(mut self, payload: impl Into<String>) -> Self {
+        self.payload = payload.into();
+        self
+    }
 }
 
 /// Priority-based queue system with 4 levels.
