@@ -1,3 +1,4 @@
+pub mod browser;
 pub mod profiles;
 pub mod jwt;
 pub mod endpoints;

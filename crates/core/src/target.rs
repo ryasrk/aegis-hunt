@@ -9,6 +9,102 @@ pub struct Target {
     pub targets: Vec<String>,
 }
 
+/// Scope configuration: which targets are in-scope and which are out-of-scope.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScopeConfig {
+    /// Domains/patterns that ARE in scope (e.g. "*.example.com", "api.example.com")
+    pub in_scope: Vec<String>,
+    /// Domains/patterns that are OUT of scope and should be excluded
+    /// (e.g. "pay.example.com", "admin.example.com")
+    pub out_of_scope: Vec<String>,
+    /// File path to load scope from (optional, YAML/JSON)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope_file: Option<String>,
+}
+
+impl ScopeConfig {
+    pub fn new() -> Self {
+        Self {
+            in_scope: Vec::new(),
+            out_of_scope: Vec::new(),
+            scope_file: None,
+        }
+    }
+
+    pub fn new_with(in_scope: Vec<String>, out_of_scope: Vec<String>) -> Self {
+        Self { in_scope, out_of_scope, scope_file: None }
+    }
+
+    /// Load scope from a YAML/JSON file.
+    pub fn load(path: &str) -> AegisResult<Self> {
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| AegisError::Config(format!("Failed to read scope file: {}", e)))?;
+
+        // JSON scope files only
+        serde_json::from_str(&content)
+            .map_err(|e| AegisError::Config(format!("Invalid scope JSON (expected ScopeConfig format): {}", e)))
+    }
+
+    /// Check if a target matches any in-scope pattern.
+    pub fn is_in_scope(&self, target: &str) -> bool {
+        if self.in_scope.is_empty() {
+            return true; // No scope restriction = everything allowed
+        }
+        target_matches_any(target, &self.in_scope)
+    }
+
+    /// Check if a target matches any out-of-scope pattern.
+    pub fn is_out_of_scope(&self, target: &str) -> bool {
+        if self.out_of_scope.is_empty() {
+            return false;
+        }
+        target_matches_any(target, &self.out_of_scope)
+    }
+
+    /// Check if a target is valid (in scope AND not out of scope).
+    pub fn is_allowed(&self, target: &str) -> bool {
+        self.is_in_scope(target) && !self.is_out_of_scope(target)
+    }
+
+    /// Filter a list of subdomains/URLs, removing OOS items.
+    pub fn filter<T: AsRef<str>>(&self, items: &[T]) -> Vec<String> {
+        items.iter()
+            .filter(|item| self.is_allowed(item.as_ref()))
+            .map(|item| item.as_ref().to_string())
+            .collect()
+    }
+
+    /// Get a human-readable summary of the scope.
+    pub fn summary(&self) -> String {
+        let mut s = String::new();
+        s.push_str(&format!("IN SCOPE ({}):\n", self.in_scope.len()));
+        for scope in &self.in_scope {
+            s.push_str(&format!("  + {}\n", scope));
+        }
+        s.push_str(&format!("OUT OF SCOPE ({}):\n", self.out_of_scope.len()));
+        for oos in &self.out_of_scope {
+            s.push_str(&format!("  - {}\n", oos));
+        }
+        s
+    }
+}
+
+/// Check if a target matches any pattern in a list.
+/// Supports exact match, subdomain match, and wildcard (*.) prefix.
+fn target_matches_any(target: &str, patterns: &[String]) -> bool {
+    let target = target.trim().to_lowercase();
+    patterns.iter().any(|pattern| {
+        let pattern = pattern.trim().to_lowercase();
+        if let Some(base) = pattern.strip_prefix("*.") {
+            // Wildcard: *.example.com matches sub.example.com and example.com
+            target == base || target.ends_with(&format!(".{}", base))
+        } else {
+            // Exact match or subdomain match
+            target == pattern || target.ends_with(&format!(".{}", pattern))
+        }
+    })
+}
+
 pub struct TargetValidator;
 
 impl TargetValidator {
@@ -148,5 +244,81 @@ mod tests {
     fn test_validate_scope_empty_list() {
         let scopes: Vec<String> = vec![];
         assert!(TargetValidator::validate_scope("anything", &scopes).is_ok());
+    }
+
+    // === ScopeConfig (IN/OOS) Tests ===
+
+    #[test]
+    fn test_scope_config_in_scope() {
+        let scope = ScopeConfig::new_with(
+            vec!["*.example.com".into()],
+            vec!["pay.example.com".into()],
+        );
+        assert!(scope.is_allowed("app.example.com"));
+        assert!(scope.is_allowed("api.example.com"));
+    }
+
+    #[test]
+    fn test_scope_config_out_of_scope() {
+        let scope = ScopeConfig::new_with(
+            vec!["*.example.com".into()],
+            vec!["pay.example.com".into()],
+        );
+        assert!(!scope.is_allowed("pay.example.com"));
+    }
+
+    #[test]
+    fn test_scope_config_all_in_scope_default() {
+        let scope = ScopeConfig::new();
+        assert!(scope.is_allowed("anything.com"));
+    }
+
+    #[test]
+    fn test_scope_config_filter() {
+        let scope = ScopeConfig::new_with(
+            vec!["*.example.com".into()],
+            vec!["pay.example.com".into()],
+        );
+        let items = vec!["app.example.com", "pay.example.com", "api.example.com"];
+        let filtered = scope.filter(&items);
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.contains(&"app.example.com".to_string()));
+        assert!(filtered.contains(&"api.example.com".to_string()));
+        assert!(!filtered.contains(&"pay.example.com".to_string()));
+    }
+
+    #[test]
+    fn test_scope_config_out_of_scope_multiple() {
+        let scope = ScopeConfig::new_with(
+            vec!["*.example.com".into()],
+            vec!["pay.example.com".into(), "admin.example.com".into()],
+        );
+        assert!(!scope.is_allowed("pay.example.com"));
+        assert!(!scope.is_allowed("admin.example.com"));
+        assert!(scope.is_allowed("blog.example.com"));
+    }
+
+    #[test]
+    fn test_target_matches_any_exact() {
+        assert!(target_matches_any("example.com", &vec!["example.com".into()]));
+        assert!(!target_matches_any("other.com", &vec!["example.com".into()]));
+    }
+
+    #[test]
+    fn test_target_matches_any_wildcard() {
+        assert!(target_matches_any("sub.example.com", &vec!["*.example.com".into()]));
+        assert!(target_matches_any("example.com", &vec!["*.example.com".into()]));
+        assert!(!target_matches_any("example.org", &vec!["*.example.com".into()]));
+    }
+
+    #[test]
+    fn test_scope_config_summary() {
+        let scope = ScopeConfig::new_with(
+            vec!["*.example.com".into()],
+            vec!["pay.example.com".into()],
+        );
+        let summary = scope.summary();
+        assert!(summary.contains("IN SCOPE"));
+        assert!(summary.contains("OUT OF SCOPE"));
     }
 }

@@ -1,65 +1,50 @@
 # Aegis Progress
 
 ## Phase 1 — Complete
-- [x] Rust workspace with 8 crates (core, events, storage, recon, intel, scheduler, reporting, binary)
-- [x] Event bus with 27 typed event variants
-- [x] SQLite database with 8 tables, migrations, CRUD
-- [x] Plugin system: subfinder, httpx, nuclei subprocess runners
-- [x] ExploitDB index: 47K entries with CVE/tech/platform search
-- [x] Scheduler engine with recon orchestration
-- [x] Priority queues (Fast/Medium/Expensive/Human)
-- [x] Markdown + JSON report generators
-- [x] CLI with `scan`, `recon`, `list` commands
-- [x] Target validator with scope enforcement
-- [x] 11 unit tests
+- 10-crate workspace foundation
+- Recon, exploit DB, SQLite, scheduler, reports
 
 ## Phase 2 — Complete
+- JS intelligence engine, 6 verify modules, advanced hunter
+- Adaptive rate limiting, monitoring mode, HTML/SARIF reports
+- Attack chain engine, WAF bypass, cloud intel
 
-### JS Intelligence Engine
-- [x] 15 regex patterns: API endpoints, AWS keys, JWT, GraphQL, WebSocket, postMessage, source maps, cloud buckets, internal domains, secrets
-- [x] JS bundle downloading via reqwest with HTML script discovery
-- [x] Line-aware context extraction with confidence scoring
-- [x] 12 unit tests covering all pattern types
-- [x] Integrated into scheduler: auto-analyzes JS after httpx probing
+## Phase 3 — Complete
+- Attack graph engine (petgraph, A* path finding, risk scoring)
+- REST API server (axum, 7 endpoints, SSE streaming)
+- Campaign manager for multi-target batch scanning
+- HackerOne/YesWeHack report formatters
+- PoC curl command generation per vuln type
+- Certificate Transparency OSINT (crt.sh)
 
-### Detection & Verification Modules
-- [x] **WAF detection**: 8 vendor fingerprints (Cloudflare, AWS WAF, Akamai, ModSecurity, F5, Imperva, Sucuri) + per-vendor XSS/SQLi bypass payloads
-- [x] **SSRF probing**: 14 cloud metadata/internal endpoints with async parameter testing
-- [x] **CORS testing**: Reflective origin, wildcard, and credential checks with severity grading
-- [x] **LFI probing**: 26 payloads (path traversal, PHP wrappers, file://) with 10 detection indicators
-- [x] **Subdomain takeover**: 20 cloud service CNAME fingerprints + HTTP 404 response analysis
-- [x] **Content discovery cascade**: 3-level ffuf command generation (common → raft-medium → API endpoints)
+## Phase 4 — Complete
 
-### Advanced Hunting Intelligence
-- [x] **Tech-specific attack profiles**: 10 technologies (Next.js, GraphQL, Spring, Laravel, Rails, WordPress, Apache, K8s, Jira) with per-test curl examples
-- [x] **JWT analyzer**: Detects alg:none, KID injection, privilege claims, expired/future/never-expiring tokens
-- [x] **Business logic endpoint classifier**: 12 categories (Auth, Payment, 2FA, File Upload, Admin, SSRF, etc.)
-- [x] **Cloud intelligence**: AWS/GCP/Azure checks for metadata service, storage buckets, misconfigurations
-- [x] **Parameter vulnerability classifier**: 30 parameter names mapped to likely vulns with confidence scores and payloads
-- [x] **Attack chain engine**: 8 chain patterns (SSRF+IDOR, XSS+CORS, LFI+SSRF, SSTI→RCE, redirect+OAuth, etc.)
+### Auto-Exploitation Engine
+- [x] SQLi: boolean-based detection, DB type fingerprinting (MySQL/PostgreSQL/SQLite/MSSQL/Oracle/MongoDB), version extraction
+- [x] SSRF: cloud metadata probing (AWS/GCP/Azure), internal service discovery (Jenkins/K8s/MySQL/Redis/ES/Docker)
+- [x] XSS: unique-payload reflection testing with context classification
+- [x] LFI: sensitive file reading with indicator matching (passwd, environ, PHP wrappers, logs)
+- [x] Orchestrator: coordinated run_all() across all exploit types
 
-### Scheduling & Performance
-- [x] Priority queue wired into engine with queue-based task dispatch
-- [x] AsyncDatabase wrapper with tokio::spawn_blocking for safe SQLite
-- [x] Adaptive rate limiting with exponential backoff
-- [x] Scan duration tracking and progress logging
-- [x] Notify alerts on critical/high findings via `notify` CLI
+### Session Management
+- [x] Form-based authentication with CSRF token extraction (6 regex patterns)
+- [x] Bearer token / JWT authentication
+- [x] Cookie persistence and auth header generation
+- [x] Session lifecycle management (has/clear/track)
 
-### Reports
-- [x] HTML report generator (dark theme, severity summary, evidence, exploit refs)
-- [x] SARIF 2.1.0 output (OASIS standard, severity-to-level mapping)
-- [x] Attack chain suggestions in reports
+### Smart Proxy / Evasion
+- [x] Proxy rotation pool with configurable WAF status-code triggers
+- [x] 6 rotating User-Agent strings (Chrome/Firefox/Safari across platforms)
+- [x] Randomized request headers (language, connection, cache-control)
+- [x] Jitter delay (500-3500ms) for human-like request patterns
 
-### Monitoring & Deployment
-- [x] Continuous monitoring mode (`aegis monitor` with configurable interval)
-- [x] Historical recon diffing (adds/removes detection per iteration)
-- [x] Dockerfile (multi-stage, 1.75-slim builder → bookworm-slim runtime)
+### Browser Intelligence
+- [x] DOM analysis script generation (forms, scripts, links, comments, storage)
+- [x] Authenticated scan script generation (login flow + multi-target crawl)
+- [x] Visual PoC verification scripts (screenshots, dialog detection, indicator matching)
+- [x] Browser profile selection (chrome-desktop, chrome-mobile, firefox-desktop, safari-iphone)
 
-### Test Coverage
-- [x] **82 tests across 10 crates** (8 core + 3 storage + 12 jsengine + 12 verify + 27 hunter + 6 ratelimit + 4 monitor + 3 chains + X reporting)
+### Totals
+- [x] **135 tests** across all crates
+- [x] **16 crates** (core, events, storage, recon, intel, jsengine, verify, hunter, scheduler, reporting, graph, api, exploit, session, binary)
 - [x] Zero clippy warnings, clean debug + release build
-
-## Repository
-- [x] GitHub: `github.com/ryasrk/aegis-hunt` (main branch)
-- [x] README with architecture, quick start, CLI reference
-- [x] Full docs/ directory with specs, plans, and progress tracking

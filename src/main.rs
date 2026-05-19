@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use aegis_api::server::AppState;
 use aegis_core::config::AppConfig;
-use aegis_core::target::TargetValidator;
+use aegis_core::target::{TargetValidator, ScopeConfig};
 use aegis_core::types::ScanReport;
 use aegis_events::bus::EventBus;
 use aegis_recon::registry::PluginRegistry;
@@ -35,6 +35,9 @@ enum Commands {
         /// Output path for the report
         #[arg(short, long)]
         output: Option<String>,
+        /// Scope file (JSON: {"in_scope": [...], "out_of_scope": [...]})
+        #[arg(short, long)]
+        scope: Option<String>,
         /// Config file path
         #[arg(short, long, default_value = "configs/default.toml")]
         config: String,
@@ -98,11 +101,25 @@ async fn main() -> Result<()> {
             target,
             format,
             output,
+            scope,
             config,
         } => {
             let config: AppConfig = load_config(&config)?;
-            let parsed = TargetValidator::parse(&target)
+            let mut parsed = TargetValidator::parse(&target)
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            // Apply scope filtering if scope file provided
+            if let Some(scope_path) = scope {
+                let scope_config = ScopeConfig::load(&scope_path)
+                    .map_err(|e| anyhow::anyhow!("Scope error: {}", e))?;
+                println!("{}", scope_config.summary());
+                // Filter targets that are out of scope
+                parsed.targets = scope_config.filter(&parsed.targets);
+                if parsed.targets.is_empty() {
+                    anyhow::bail!("All targets are out of scope after filtering");
+                }
+            }
+
             let db_path = db_path_from_config(&config);
             let db = Arc::new(
                 Database::open(&db_path)

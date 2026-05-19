@@ -1,0 +1,11 @@
+{
+  "in_scope": [
+    "*.example.com",
+    "api.example.org"
+  ],
+  "out_of_scope": [
+    "pay.example.com",
+    "admin.example.com",
+    "internal.example.com"
+  ]
+}

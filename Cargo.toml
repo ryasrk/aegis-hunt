@@ -12,6 +12,9 @@ members = [
     "crates/hunter",
     "crates/graph",
     "crates/api",
+    "crates/exploit",
+    "crates/session",
+    "crates/auto",
 ]
 resolver = "2"
 
@@ -41,6 +44,7 @@ chrono = { version = "0.4", features = ["serde"] }
 num_cpus = "1"
 toml = "0.8"
 aegis-api = { path = "crates/api" }
+aegis-auto = { path = "crates/auto" }
 tokio-stream = { version = "0.1", features = ["sync"] }
 axum = { version = "0.7", features = ["macros"] }
 tower-http = { version = "0.5", features = ["cors"] }
