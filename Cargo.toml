@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/events",
+    "crates/storage",
+    "crates/scheduler",
+    "crates/recon",
+    "crates/intel",
+    "crates/reporting",
+]
+resolver = "2"
+
+[package]
+name = "aegis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aegis-core = { path = "crates/core" }
+aegis-events = { path = "crates/events" }
+aegis-storage = { path = "crates/storage" }
+aegis-scheduler = { path = "crates/scheduler" }
+aegis-recon = { path = "crates/recon" }
+aegis-intel = { path = "crates/intel" }
+aegis-reporting = { path = "crates/reporting" }
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+num_cpus = "1"
+toml = "0.8"

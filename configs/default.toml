@@ -1,0 +1,21 @@
+[general]
+max_concurrency = 0
+request_timeout_secs = 30
+retry_attempts = 3
+user_agent = "Aegis/0.1.0"
+
+[rate_limit]
+requests_per_second = 10
+requests_per_minute = 200
+concurrent_requests = 10
+burst_size = 20
+delay_between_requests_ms = 100
+
+[paths]
+data_dir = "data"
+output_dir = "reports"
+
+[plugins]
+enabled_plugins = ["subfinder", "httpx", "nuclei"]
+allow_remote_plugins = false
+plugin_timeout_secs = 300
