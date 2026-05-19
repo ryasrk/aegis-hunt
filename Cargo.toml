@@ -15,6 +15,8 @@ members = [
     "crates/exploit",
     "crates/session",
     "crates/auto",
+    "crates/llm",
+    "crates/plugin",
 ]
 resolver = "2"
 

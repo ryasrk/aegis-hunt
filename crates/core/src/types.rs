@@ -67,7 +67,7 @@ pub struct Endpoint {
     pub discovered_by: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 /// A security finding or vulnerability discovered during testing.
 pub struct Finding {
     pub id: String,

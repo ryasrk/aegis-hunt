@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aegis Dashboard</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #c9d1d9; --text-secondary: #8b949e;
+  --accent: #58a6ff; --critical: #f85149; --high: #d29922;
+  --medium: #58a6ff; --low: #8b949e; --success: #3fb950;
+  --sidebar: 240px; --header: 56px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+.sidebar { width: var(--sidebar); background: var(--surface); border-right: 1px solid var(--border); padding: 16px; position: fixed; height: 100vh; overflow-y: auto; }
+.sidebar h1 { color: var(--accent); font-size: 18px; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.sidebar .logo { display: flex; align-items: center; gap: 8px; }
+.sidebar .logo span { font-size: 24px; }
+.nav-item { padding: 10px 12px; margin: 2px 0; border-radius: 6px; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; gap: 10px; transition: all 0.2s; }
+.nav-item:hover, .nav-item.active { background: rgba(88,166,255,0.1); color: var(--accent); }
+.nav-item .icon { width: 20px; text-align: center; }
+.main { margin-left: var(--sidebar); padding: 24px; flex: 1; max-width: calc(100vw - var(--sidebar)); }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.header h2 { font-size: 24px; font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.stat-card .value { font-size: 32px; font-weight: 700; }
+.stat-card .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.card h3 { font-size: 16px; margin-bottom: 12px; color: var(--accent); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); color: var(--text-secondary); font-size: 12px; text-transform: uppercase; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.badge.critical { background: rgba(248,81,73,0.2); color: var(--critical); }
+.badge.high { background: rgba(210,153,34,0.2); color: var(--high); }
+.badge.medium { background: rgba(88,166,255,0.2); color: var(--medium); }
+.badge.low { background: rgba(139,148,158,0.2); color: var(--low); }
+.badge.success { background: rgba(63,185,80,0.2); color: var(--success); }
+input, select, textarea { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); margin: 4px 0; width: 100%; }
+.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #4a90d9; }
+.btn-danger { background: var(--critical); color: #fff; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.form-row { display: flex; gap: 8px; margin: 8px 0; align-items: center; }
+.form-row input { flex: 1; }
+.scope-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; margin: 4px 0; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+.scope-item.in-scope { border-left: 3px solid var(--success); }
+.scope-item.out-of-scope { border-left: 3px solid var(--critical); }
+.scope-item .remove { cursor: pointer; color: var(--critical); font-size: 18px; padding: 0 4px; }
+.tab-bar { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
+.loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-bar input { flex: 1; min-width: 200px; }
+.filter-bar select { width: auto; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="sidebar">
+    <div class="logo"><span>🛡️</span><h1>Aegis</h1></div>
+    <div class="nav-item" v-for="item in navItems" :key="item.id"
+         :class="{ active: currentView === item.id }" @click="currentView = item.id">
+      <span class="icon">{{ item.icon }}</span>
+      <span>{{ item.label }}</span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="header"><h2>{{ currentTitle }}</h2></div>
+
+    <!-- Dashboard View -->
+    <div v-if="currentView === 'dashboard'">
+      <div class="stats">
+        <div class="stat-card"><div class="value" style="color:var(--accent)">{{ stats.total_scans }}</div><div class="label">Total Scans</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--critical)">{{ stats.critical }}</div><div class="label">Critical</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--high)">{{ stats.high }}</div><div class="label">High</div></div>
+        <div class="stat-card"><div class="value" style="color:var(--medium)">{{ stats.medium }}</div><div class="label">Medium</div></div>
+        <div class="stat-card"><div class="value">{{ stats.domains }}</div><div class="label">Domains</div></div>
+      </div>
+      <div class="card"><h3>Recent Activity</h3><p v-if="recentScans.length === 0" style="color:var(--text-secondary)">No recent scans. Launch one from the Scans tab.</p></div>
+    </div>
+
+    <!-- Scope View -->
+    <div v-if="currentView === 'scope'">
+      <div class="card">
+        <h3>IN SCOPE</h3>
+        <div class="form-row"><input v-model="newInScope" placeholder="*.example.com" @keyup.enter="addScope('in')" /><button class="btn btn-primary btn-sm" @click="addScope('in')">+ Add</button></div>
+        <div class="scope-item in-scope" v-for="item in scope.in_scope" :key="item">
+          <span>{{ item }}</span><span class="remove" @click="removeScope('in', item)">&times;</span>
+        </div>
+        <div v-if="scope.in_scope.length === 0" style="color:var(--text-secondary);padding:8px;">No in-scope targets defined. All targets allowed.</div>
+      </div>
+      <div class="card">
+        <h3>OUT OF SCOPE</h3>
+        <div class="form-row"><input v-model="newOutOfScope" placeholder="pay.example.com" @keyup.enter="addScope('out')" /><button class="btn btn-danger btn-sm" @click="addScope('out')">+ Add</button></div>
+        <div class="scope-item out-of-scope" v-for="item in scope.out_of_scope" :key="item">
+          <span>{{ item }}</span><span class="remove" @click="removeScope('out', item)">&times;</span>
+        </div>
+        <div v-if="scope.out_of_scope.length === 0" style="color:var(--text-secondary);padding:8px;">No out-of-scope targets.</div>
+      </div>
+      <button class="btn btn-primary" @click="saveScope">Save Scope</button>
+      <button class="btn" style="margin-left:8px" @click="loadScope">Reset</button>
+    </div>
+
+    <!-- Scans View -->
+    <div v-if="currentView === 'scans'">
+      <div class="card">
+        <div class="form-row"><input v-model="newScanTarget" placeholder="target.com" @keyup.enter="startScan" /><button class="btn btn-primary btn-sm" @click="startScan">Scan</button></div>
+      </div>
+      <div class="card"><h3>Scan History</h3>
+        <table><tr><th>ID</th><th>Target</th><th>Status</th><th>Findings</th><th>Duration</th><th>Actions</th></tr>
+        <tr v-for="s in scanHistory" :key="s.id">
+          <td>{{ s.id ? s.id.slice(0,8) : '-' }}</td>
+          <td>{{ s.target }}</td>
+          <td><span class="badge" :class="s.status === 'completed' ? 'success' : s.status === 'running' ? 'medium' : 'low'">{{ s.status }}</span></td>
+          <td>{{ s.finding_count || 0 }}</td>
+          <td>{{ s.duration ? s.duration + 's' : '-' }}</td>
+          <td><button class="btn btn-sm btn-primary" @click="viewScan(s.id)">View</button></td>
+        </tr>
+        <tr v-if="scanHistory.length === 0"><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:20px;">No scans yet</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Findings View -->
+    <div v-if="currentView === 'findings'">
+      <div class="card">
+        <h3>Findings</h3>
+        <div class="filter-bar">
+          <input v-model="findingsSearch" placeholder="Search by title, description, CVE..." />
+          <select v-model="findingsSeverityFilter">
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+            <option value="info">Info</option>
+          </select>
+        </div>
+        <table><tr><th>Severity</th><th>Title</th><th>Target</th><th>CVE</th><th>Discovered</th></tr>
+        <tr v-for="f in filteredFindings" :key="f.id">
+          <td><span class="badge" :class="f.severity.toLowerCase()">{{ f.severity }}</span></td>
+          <td>{{ f.title }}</td>
+          <td>{{ f.target || '-' }}</td>
+          <td>{{ f.cve || '-' }}</td>
+          <td>{{ f.discovered_at ? f.discovered_at.slice(0,10) : '-' }}</td>
+        </tr>
+        <tr v-if="allFindings.length === 0"><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px;">No findings yet.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Attack Graph View -->
+    <div v-if="currentView === 'graph'">
+      <div class="card"><h3>Attack Graph</h3>
+        <p style="color:var(--text-secondary);margin-bottom:12px;">Nodes and edges from discovered scans, chaining vulnerabilities into attack paths.</p>
+        <div v-if="graphData.nodes.length === 0" style="text-align:center;padding:40px;color:var(--text-secondary);">No attack graph data available. Run a scan first.</div>
+        <div v-else>
+          <h4>Nodes ({{ graphData.nodes.length }})</h4>
+          <table><tr><th>ID</th><th>Type</th><th>Label</th></tr>
+          <tr v-for="n in graphData.nodes" :key="n.id"><td>{{ n.id }}</td><td><span class="badge" :class="n.type">{{ n.type }}</span></td><td>{{ n.label }}</td></tr>
+          </table>
+          <h4 style="margin-top:16px;">Edges ({{ graphData.edges.length }})</h4>
+          <table><tr><th>Source</th><th>Edge</th><th>Target</th></tr>
+          <tr v-for="e in graphData.edges" :key="e.source + e.target"><td>{{ e.source }}</td><td><span class="badge" style="background:rgba(88,166,255,0.2);color:var(--accent);">&#8594; {{ e.type }}</span></td><td>{{ e.target }}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card"><h3>Vulnerability Chains</h3>
+        <div v-if="chains.length === 0" style="color:var(--text-secondary);">No chains found. Add findings that can be chained together.</div>
+        <div v-for="(chain, idx) in chains" :key="idx" class="finding-detail">
+          <strong style="color:var(--accent);">Chain {{ idx + 1 }}</strong>
+          <pre>{{ chain }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div v-if="currentView === 'settings'">
+      <div class="card"><h3>LLM Configuration</h3>
+        <label>API Endpoint</label><input v-model="settings.llm.endpoint" placeholder="https://api.openai.com/v1" />
+        <label>API Key</label><input v-model="settings.llm.api_key" type="password" placeholder="sk-..." />
+        <label>Model</label><input v-model="settings.llm.model" placeholder="gpt-4" />
+        <label>Temperature</label><input v-model="settings.llm.temperature" type="number" step="0.1" min="0" max="2" />
+        <button class="btn btn-primary" style="margin-top:8px" @click="saveSettings">Save LLM Config</button>
+      </div>
+      <div class="card"><h3>Notifications</h3>
+        <label>Slack Webhook</label><input v-model="settings.slack_webhook" placeholder="https://hooks.slack.com/..." />
+        <label>Discord Webhook</label><input v-model="settings.discord_webhook" placeholder="https://discord.com/api/webhooks/..." />
+        <label>Telegram Bot Token</label><input v-model="settings.telegram_token" placeholder="bot12345:..." />
+        <label>Telegram Chat ID</label><input v-model="settings.telegram_chat" placeholder="-123456" />
+        <button class="btn btn-primary" style="margin-top:8px" @click="saveSettings">Save Notifications</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const { createApp, ref, reactive, computed } = Vue;
+createApp({
+  setup() {
+    const currentView = ref('dashboard');
+    const newInScope = ref(''); const newOutOfScope = ref(''); const newScanTarget = ref('');
+    const scope = reactive({ in_scope: [], out_of_scope: [] });
+    const scanHistory = ref([]);
+    const allFindings = ref([]);
+    const findingsSearch = ref('');
+    const findingsSeverityFilter = ref('');
+    const graphData = reactive({ nodes: [], edges: [] });
+    const chains = ref([]);
+    const recentScans = ref([]);
+    const settings = reactive({ llm: { endpoint: '', api_key: '', model: 'gpt-4', temperature: 0.7 }, slack_webhook: '', discord_webhook: '', telegram_token: '', telegram_chat: '' });
+    const stats = reactive({ total_scans: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0, domains: 0 });
+
+    const navItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+      { id: 'scope', label: 'Scope', icon: '🎯' },
+      { id: 'scans', label: 'Scans', icon: '🔍' },
+      { id: 'findings', label: 'Findings', icon: '⚠️' },
+      { id: 'graph', label: 'Attack Graph', icon: '🔗' },
+      { id: 'settings', label: 'Settings', icon: '⚙️' },
+    ];
+    const currentTitle = computed(() => navItems.find(i => i.id === currentView.value)?.label || '');
+
+    const filteredFindings = computed(() => {
+      let result = allFindings.value;
+      if (findingsSearch.value) {
+        const q = findingsSearch.value.toLowerCase();
+        result = result.filter(f =>
+          (f.title && f.title.toLowerCase().includes(q)) ||
+          (f.description && f.description.toLowerCase().includes(q)) ||
+          (f.cve && f.cve.toLowerCase().includes(q))
+        );
+      }
+      if (findingsSeverityFilter.value) {
+        result = result.filter(f => f.severity && f.severity.toLowerCase() === findingsSeverityFilter.value);
+      }
+      return result;
+    });
+
+    async function apiCall(path, method = 'GET', body = null) {
+      try {
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) opts.body = JSON.stringify(body);
+        const resp = await fetch(path, opts);
+        return await resp.json();
+      } catch(e) { return { error: e.message }; }
+    }
+
+    async function loadScope() {
+      const data = await apiCall('/api/scope');
+      if (!data.error) { scope.in_scope = data.in_scope || []; scope.out_of_scope = data.out_of_scope || []; }
+    }
+    async function saveScope() {
+      await apiCall('/api/scope', 'PUT', { in_scope: scope.in_scope, out_of_scope: scope.out_of_scope });
+    }
+    function addScope(type) {
+      const val = type === 'in' ? newInScope.value.trim() : newOutOfScope.value.trim();
+      if (!val) return;
+      if (type === 'in') scope.in_scope.push(val); else scope.out_of_scope.push(val);
+      if (type === 'in') newInScope.value = ''; else newOutOfScope.value = '';
+    }
+    function removeScope(type, item) {
+      if (type === 'in') scope.in_scope = scope.in_scope.filter(i => i !== item);
+      else scope.out_of_scope = scope.out_of_scope.filter(i => i !== item);
+    }
+    async function startScan() {
+      if (!newScanTarget.value.trim()) return;
+      const result = await apiCall('/api/scan', 'POST', { target: newScanTarget.value.trim() });
+      if (result.scan_id) { newScanTarget.value = ''; loadStats(); loadScans(); }
+    }
+    async function viewScan(id) {
+      currentView.value = 'findings';
+      const data = await apiCall('/api/scan/' + id);
+      if (data.findings) allFindings.value = data.findings;
+    }
+    async function loadStats() {
+      const data = await apiCall('/api/stats');
+      if (!data.error) Object.assign(stats, data);
+    }
+    async function loadScans() {
+      const data = await apiCall('/api/scans');
+      if (!data.error) {
+        scanHistory.value = data.scans || [];
+        recentScans.value = (data.scans || []).slice(0, 5);
+      }
+    }
+    async function loadFindings() {
+      const data = await apiCall('/api/findings');
+      if (!data.error) allFindings.value = data.findings || [];
+    }
+    async function loadGraph() {
+      const data = await apiCall('/api/graph');
+      if (!data.error) {
+        graphData.nodes = data.nodes || [];
+        graphData.edges = data.edges || [];
+        chains.value = data.chains || [];
+      }
+    }
+    async function loadSettings() {
+      const data = await apiCall('/api/settings');
+      if (!data.error) Object.assign(settings, data);
+    }
+    async function saveSettings() {
+      await apiCall('/api/settings', 'PUT', settings);
+    }
+
+    loadScope(); loadStats(); loadScans(); loadFindings(); loadGraph(); loadSettings();
+
+    return {
+      currentView, navItems, currentTitle,
+      scope, newInScope, newOutOfScope, addScope, removeScope, loadScope, saveScope,
+      newScanTarget, scanHistory, startScan, viewScan,
+      allFindings, filteredFindings, findingsSearch, findingsSeverityFilter,
+      graphData, chains,
+      stats, recentScans,
+      settings, saveSettings
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

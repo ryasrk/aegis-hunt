@@ -5,14 +5,14 @@ use axum::{
     routing::{get, post},
     response::sse::{Event as SseEvent, Sse},
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::convert::Infallible;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 
 use aegis_core::types::ScanReport;
-use aegis_core::target::TargetValidator;
+use aegis_core::target::{TargetValidator, ScopeConfig};
 use aegis_core::config::AppConfig;
 use aegis_events::bus::EventBus;
 use aegis_events::types::Event;
@@ -22,22 +22,34 @@ use aegis_storage::db::Database;
 use aegis_reporting::markdown::MarkdownReport;
 use aegis_graph::graph::AttackGraph;
 
+use crate::dashboard;
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<Database>,
     pub event_bus: EventBus,
     pub config: AppConfig,
+    pub scope: Arc<Mutex<ScopeConfig>>,
+    pub settings: Arc<Mutex<dashboard::AppSettings>>,
 }
 
 pub fn create_router(state: AppState) -> Router {
-    Router::new()
+    // Main API routes
+    let api_router = Router::new()
         .route("/health", get(health))
         .route("/scan", post(start_scan))
         .route("/scan/{id}", get(get_scan))
         .route("/scans", get(list_scans))
         .route("/scan/{id}/report", get(get_report))
         .route("/scan/{id}/graph", get(get_graph))
-        .route("/scan/{id}/events", get(stream_events))
+        .route("/scan/{id}/events", get(stream_events));
+
+    // Dashboard routes (merged into the same router with the same state)
+    let dash_router = dashboard::dashboard_routes();
+
+    Router::new()
+        .merge(api_router)
+        .merge(dash_router)
         .with_state(state)
 }
 
@@ -46,13 +58,22 @@ async fn health() -> Json<serde_json::Value> {
 }
 
 #[derive(serde::Deserialize)]
-struct ScanRequest {
-    target: String,
+pub struct ScanRequest {
+    pub target: String,
 }
 
 async fn start_scan(
     State(state): State<AppState>,
     Json(req): Json<ScanRequest>,
+) -> Json<serde_json::Value> {
+    handle_start_scan(state, req).await
+}
+
+/// Shared scan-start logic used by both the main `/scan` route and the
+/// dashboard `/api/scan` route.
+pub async fn handle_start_scan(
+    state: AppState,
+    req: ScanRequest,
 ) -> Json<serde_json::Value> {
     let parsed = match TargetValidator::parse(&req.target) {
         Ok(t) => t,

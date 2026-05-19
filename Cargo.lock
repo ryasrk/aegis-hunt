@@ -170,6 +170,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "aegis-llm"
+version = "0.1.0"
+dependencies = [
+ "aegis-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "aegis-plugin"
+version = "0.1.0"
+dependencies = [
+ "aegis-core",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "aegis-recon"
 version = "0.1.0"
 dependencies = [

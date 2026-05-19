@@ -3,7 +3,7 @@ use tracing_subscriber::EnvFilter;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use aegis_api::server::AppState;
 use aegis_core::config::AppConfig;
@@ -286,6 +286,8 @@ async fn main() -> Result<()> {
                 db,
                 event_bus,
                 config: config.clone(),
+                scope: Arc::new(Mutex::new(ScopeConfig::new())),
+                settings: Arc::new(Mutex::new(aegis_api::dashboard::AppSettings::default())),
             };
 
             let app = aegis_api::server::create_router(state);

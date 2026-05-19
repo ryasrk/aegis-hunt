@@ -3,6 +3,17 @@ use aegis_core::types::{Finding, HttpService, Severity};
 
 use crate::db::Database;
 
+/// A lightweight scan record returned by `list_scans()`.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ScanRecord {
+    pub id: String,
+    pub target: String,
+    pub started_at: String,
+    pub completed_at: Option<String>,
+    pub status: String,
+    pub duration_secs: Option<u64>,
+}
+
 impl Database {
     /// Create a new scan record and return its UUID.
     pub fn create_scan(&self, target: &str) -> Result<String, AegisError> {
@@ -200,6 +211,103 @@ impl Database {
             services.push(row.map_err(|e| AegisError::Database(e.to_string()))?);
         }
         Ok(services)
+    }
+
+    /// List all scans ordered by most recent first.
+    pub fn list_scans(&self) -> Result<Vec<ScanRecord>, AegisError> {
+        let conn = self.conn();
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, target, started_at, completed_at, status FROM scans ORDER BY started_at DESC",
+            )
+            .map_err(|e| AegisError::Database(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let started_at: String = row.get(2)?;
+                let completed_at: Option<String> = row.get(3)?;
+                let status: String = row.get(4)?;
+
+                let duration_secs = completed_at.as_ref().map(|_| {
+                    // Parse timestamps (RFC 3339) and compute difference in seconds
+                    let start = chrono::DateTime::parse_from_rfc3339(&started_at)
+                        .map(|dt| dt.timestamp())
+                        .unwrap_or(0);
+                    let end = completed_at
+                        .as_ref()
+                        .and_then(|ca| chrono::DateTime::parse_from_rfc3339(ca).ok())
+                        .map(|dt| dt.timestamp())
+                        .unwrap_or(0);
+                    if end > start { (end - start) as u64 } else { 0 }
+                });
+
+                Ok(ScanRecord {
+                    id: row.get(0)?,
+                    target: row.get(1)?,
+                    started_at,
+                    completed_at,
+                    status,
+                    duration_secs,
+                })
+            })
+            .map_err(|e| AegisError::Database(e.to_string()))?;
+
+        let mut scans = Vec::new();
+        for row in rows {
+            scans.push(row.map_err(|e| AegisError::Database(e.to_string()))?);
+        }
+        Ok(scans)
+    }
+
+    /// Retrieve all findings across all scans.
+    pub fn get_all_findings(&self) -> Result<Vec<Finding>, AegisError> {
+        let conn = self.conn();
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, service_id, endpoint_id, title, severity, confidence, \
+                        description, evidence, cve, edb_id, remediation, discovered_at \
+                 FROM findings \
+                 ORDER BY \
+                   CASE severity \
+                     WHEN 'CRITICAL' THEN 0 \
+                     WHEN 'HIGH' THEN 1 \
+                     WHEN 'MEDIUM' THEN 2 \
+                     WHEN 'LOW' THEN 3 \
+                     ELSE 4 \
+                   END, discovered_at DESC",
+            )
+            .map_err(|e| AegisError::Database(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(Finding {
+                    id: row.get(0)?,
+                    service_id: row.get(1)?,
+                    endpoint_id: row.get(2)?,
+                    title: row.get(3)?,
+                    severity: row
+                        .get::<_, String>(4)?
+                        .parse::<Severity>()
+                        .unwrap_or(Severity::Info),
+                    confidence: row.get::<_, i32>(5)? as u8,
+                    description: row.get(6)?,
+                    evidence: row.get(7)?,
+                    cve: row.get(8)?,
+                    edb_id: row.get::<_, Option<i32>>(9).map(|v| v.map(|x| x as u32))?,
+                    remediation: row.get(10)?,
+                    discovered_at: row
+                        .get::<_, String>(11)?
+                        .parse::<chrono::DateTime<chrono::Utc>>()
+                        .unwrap_or_else(|_| chrono::Utc::now()),
+                })
+            })
+            .map_err(|e| AegisError::Database(e.to_string()))?;
+
+        let mut findings = Vec::new();
+        for row in rows {
+            findings.push(row.map_err(|e| AegisError::Database(e.to_string()))?);
+        }
+        Ok(findings)
     }
 }
 
