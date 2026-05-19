@@ -1,4 +1,5 @@
 use std::sync::mpsc;
+use std::sync::Mutex;
 use tracing::debug;
 
 /// Priority levels for the scheduler queues.
@@ -49,15 +50,18 @@ impl QueueItem {
 }
 
 /// Priority-based queue system with 4 levels.
+///
+/// Uses `Mutex<Receiver>` internally so `PriorityQueue` is `Sync`,
+/// allowing safe sharing across async boundaries.
 pub struct PriorityQueue {
     fast_tx: mpsc::Sender<QueueItem>,
-    fast_rx: mpsc::Receiver<QueueItem>,
+    fast_rx: Mutex<mpsc::Receiver<QueueItem>>,
     medium_tx: mpsc::Sender<QueueItem>,
-    medium_rx: mpsc::Receiver<QueueItem>,
+    medium_rx: Mutex<mpsc::Receiver<QueueItem>>,
     expensive_tx: mpsc::Sender<QueueItem>,
-    expensive_rx: mpsc::Receiver<QueueItem>,
+    expensive_rx: Mutex<mpsc::Receiver<QueueItem>>,
     human_tx: mpsc::Sender<QueueItem>,
-    human_rx: mpsc::Receiver<QueueItem>,
+    human_rx: Mutex<mpsc::Receiver<QueueItem>>,
 }
 
 impl PriorityQueue {
@@ -66,7 +70,12 @@ impl PriorityQueue {
         let (medium_tx, medium_rx) = mpsc::channel();
         let (expensive_tx, expensive_rx) = mpsc::channel();
         let (human_tx, human_rx) = mpsc::channel();
-        Self { fast_tx, fast_rx, medium_tx, medium_rx, expensive_tx, expensive_rx, human_tx, human_rx }
+        Self {
+            fast_tx, fast_rx: Mutex::new(fast_rx),
+            medium_tx, medium_rx: Mutex::new(medium_rx),
+            expensive_tx, expensive_rx: Mutex::new(expensive_rx),
+            human_tx, human_rx: Mutex::new(human_rx),
+        }
     }
 
     pub fn enqueue(&self, item: QueueItem) {
@@ -81,11 +90,10 @@ impl PriorityQueue {
 
     /// Dequeue the highest-priority available item (Fast > Medium > Expensive > Human).
     pub fn dequeue(&self) -> Option<QueueItem> {
-        self.fast_rx.try_recv()
-            .or_else(|_| self.medium_rx.try_recv())
-            .or_else(|_| self.expensive_rx.try_recv())
-            .or_else(|_| self.human_rx.try_recv())
-            .ok()
+        self.fast_rx.lock().ok().and_then(|rx| rx.try_recv().ok())
+            .or_else(|| self.medium_rx.lock().ok().and_then(|rx| rx.try_recv().ok()))
+            .or_else(|| self.expensive_rx.lock().ok().and_then(|rx| rx.try_recv().ok()))
+            .or_else(|| self.human_rx.lock().ok().and_then(|rx| rx.try_recv().ok()))
     }
 }
 

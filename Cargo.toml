@@ -10,6 +10,8 @@ members = [
     "crates/reporting",
     "crates/verify",
     "crates/hunter",
+    "crates/graph",
+    "crates/api",
 ]
 resolver = "2"
 
@@ -26,6 +28,8 @@ aegis-scheduler = { path = "crates/scheduler" }
 aegis-recon = { path = "crates/recon" }
 aegis-intel = { path = "crates/intel" }
 aegis-reporting = { path = "crates/reporting" }
+aegis-verify = { path = "crates/verify" }
+aegis-graph = { path = "crates/graph" }
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
@@ -36,3 +40,7 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 num_cpus = "1"
 toml = "0.8"
+aegis-api = { path = "crates/api" }
+tokio-stream = { version = "0.1", features = ["sync"] }
+axum = { version = "0.7", features = ["macros"] }
+tower-http = { version = "0.5", features = ["cors"] }

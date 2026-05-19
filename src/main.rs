@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
+use aegis_api::server::AppState;
 use aegis_core::config::AppConfig;
 use aegis_core::target::TargetValidator;
 use aegis_core::types::ScanReport;
@@ -57,6 +58,25 @@ enum Commands {
         /// Output directory for historical data
         #[arg(short, long, default_value = "recon/history")]
         history_dir: String,
+        #[arg(short, long, default_value = "configs/default.toml")]
+        config: String,
+    },
+    /// Run OSINT reconnaissance against a target (crt.sh, etc.)
+    Osint {
+        /// Target domain
+        target: String,
+        #[arg(short, long, default_value = "configs/default.toml")]
+        config: String,
+    },
+    /// Start the Aegis REST API server
+    Serve {
+        /// Host to bind to
+        #[arg(short, long, default_value = "127.0.0.1")]
+        host: String,
+        /// Port to listen on
+        #[arg(short, long, default_value = "4097")]
+        port: u16,
+        /// Config file path
         #[arg(short, long, default_value = "configs/default.toml")]
         config: String,
     },
@@ -217,6 +237,46 @@ async fn main() -> Result<()> {
 
                 tokio::time::sleep(interval_dur).await;
             }
+        }
+        Commands::Osint { target, config } => {
+            let _config: AppConfig = load_config(&config)?;
+            let parsed = TargetValidator::parse(&target)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            println!("[Aegis] Running OSINT on {}", parsed.normalized);
+
+            // Certificate Transparency
+            println!("\n── Certificate Transparency (crt.sh) ──");
+            match aegis_verify::crtsh::query_crtsh(&parsed.normalized).await {
+                Ok(subdomains) => {
+                    for sub in &subdomains {
+                        println!("  {}", sub);
+                    }
+                    println!("Total: {} subdomains from crt.sh", subdomains.len());
+                }
+                Err(e) => println!("  Error: {}", e),
+            }
+        }
+        Commands::Serve { host, port, config } => {
+            let config: AppConfig = load_config(&config)?;
+            let db_path = db_path_from_config(&config);
+            let db = Arc::new(
+                Database::open(&db_path)
+                    .map_err(|e| anyhow::anyhow!("Database error: {}", e))?,
+            );
+            let event_bus = EventBus::new(1024);
+
+            let state = AppState {
+                db,
+                event_bus,
+                config: config.clone(),
+            };
+
+            let app = aegis_api::server::create_router(state);
+            let addr = format!("{}:{}", host, port);
+            println!("[Aegis] API server starting on http://{}", addr);
+
+            let listener = tokio::net::TcpListener::bind(&addr).await?;
+            axum::serve(listener, app).await?;
         }
     }
 
